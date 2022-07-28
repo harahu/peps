@@ -8,7 +8,6 @@ Status: Draft
 Type: Standards Track
 Topic: Typing
 Content-Type: text/x-rst
-Requires: 695
 Created: 24-Jul-2022
 Python-Version: 3.12
 
@@ -28,84 +27,96 @@ HKTs have long been a requested feature, for quite some use cases [#typing-548]_
 
 .. code:: python
 
-    from typing import Callable, Iterable
+    from typing import Callable, Iterable, TypeVar
+
+    T = TypeVar("T")
+    U = TypeVar("U")
+
+    I = TypeVar("I", bound="Iterable[T]", args=1)
 
 
-    def map_iterable[I[T]: Iterable[T], T, U](
-        function: Callable[[T], U], iterable: I[T]
-    ) -> I[U]:
+    def map_iterable(function: Callable[[T], U], iterable: I[T]) -> I[U]:
         return type(iterable)(map(function, iterable))
 
 
     reveal_type(map_iterable(str, [1, 2, 3]))  # list[str]
     reveal_type(map_iterable(str, (1, 2, 3)))  # tuple[str]
-    reveal_type(map_iterable(str, {1: 1}))  # fails
+    reveal_type(map_iterable(str, {1: 1}))  # fails!
     # `dict` can not be initialized from `Iterable[str]`
 
 .. code:: python
 
-    from typing import Callable, Protocol
+    from typing import Callable, Protocol, TypeVar
 
-    type Unary[T, U] = Callable[[T], U]
+    T = TypeVar("T")
+    U = TypeVar("U")
 
-    class Functor[T](Protocol):
-        def map[F[T]: Functor[T], U](self: F[T], function: Unary[T, U]) -> F[U]:
+    F = TypeVar("F", bound="Functor[T]", args=1)
+
+
+    class Functor(Protocol[T]):
+        def map(self: F[T], function: Callable[[T], U]) -> F[U]:
             ...
 
 .. code:: python
 
     from dataclasses import dataclass
 
+    T = TypeVar("T")
+
+    W = TypeVar("W", bound="Wrap[T]", args=1)
+
+
     @dataclass
-    class Wrap[T](Functor[T]):
+    class Wrap(Functor[T]):
         value: T
 
-        def map[W[T]: Wrap[T], U](
-            self: W[T], function: Unary[T, U]
-        ) -> W[U]:
+        def map(self: W[T], function: Callable[[T], U]) -> W[U]:
             return type(self)(function(self.value))
 
 .. code:: python
 
-    from collections import Mapping, MutableMapping
-    
-    # Taken from https://github.com/jab/bidict
-    class BidirectionalMapping[K, V](Mapping[K, V]):
-        """ABC for one-to-one Mapping; inverse Mapping maintained alongside forward mapping."""
-        
+    from typing import Mapping, MutableMapping
+
+    K = TypeVar("K")
+    V = TypeVar("V")
+
+    BM = TypeVar("BM", bound="BidirectionalMapping[K, V]", args=2)
+
+
+    # taken from https://github.com/jab/bidict
+    class BidirectionalMapping(Mapping[K, V]):
+        """One-to-one `Mapping[K, V]`; the inverse `Mapping[V, K]` is maintained
+        alongside the forward mapping.
+        """
+
         @property
-        def inverse[BM: BidirectionalMapping[K, V]](self: BM[K, V]) -> BM[V, K]:
+        def inverse(self: BM[K, V]) -> BM[V, K]:
             ...
 
 
     class bidict(BidirectionalMapping[K, V], MutableMapping[K, V]):
-         """Mutable BidirectionalMapping type."""
-         # Thanks to HKT, no need to override `inverse` in subclasses like this one just to tell
-         # type checkers that b.inverse is a bidict[V, K], not just a BidirectionalMapping[V, K].
-         # Without HKT, every subclass must resort to hard-coding the subtype in an override:
+         """Mutable `BidirectionalMapping[K, V]` type."""
+         # thanks to HKTs, no need to override `inverse` in subclasses like this one just to tell
+         # type checkers that bd.inverse is a `bidict[V, K]`, not just a `BidirectionalMapping[V, K]`.
+         # Without HKTs, every subclass must resort to hard-coding the subtype in an override:
          # - https://github.com/jab/bidict/blob/v0.22.0/bidict/_base.py#L165-L170
          # - https://github.com/jab/bidict/blob/v0.22.0/bidict/_frozenbidict.py#L27-L31
          # - https://github.com/jab/bidict/blob/v0.22.0/bidict/_bidict.py#L28-L30
          # - https://github.com/jab/bidict/blob/v0.22.0/bidict/_orderedbidict.py#L32-L34
          # - etc. 
 
-
 .. code:: python
 
-    >>> atomicnum_by_element = bidict({"hydrogen": 1})  # bidict[str, int]
-    >>> atomicnum_by_element.inverse  # bidict[int, str]
+    >>> atomic_number_by_element = bidict({"hydrogen": 1})  # bidict[str, int]
+    >>> atomic_number_by_element.inverse  # bidict[int, str]
     bidict({1: "hydrogen"})
 
 
 Prior Art
 =========
 
-* https://returns.readthedocs.io/en/latest/pages/hkt.html
-  TODO: Cite their HKT mypy plugin as evidence of demand for HKT in Python,
-  discuss the results that the developers and users have had with it,
-  to what extent this PEP and accompanying reference implementation(s)
-  are influenced by it, and any other relevant history.
-
+[#returns-hkt]_.
 
 Specification
 =============
@@ -118,6 +129,9 @@ References
 
 .. [#typing-548] Python ``typing`` issue #548:
    https://github.com/python/typing/issues/548
+
+.. [#returns-hkt] Python ``returns`` library:
+   https://returns.readthedocs.io/en/latest/pages/hkt.html
 
 Copyright
 =========
