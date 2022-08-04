@@ -15,7 +15,7 @@ Abstract
 ========
 
 :pep:`484` introduced ``TypeVar``, enabling generics parametrized with a single type.
-``TypeVar`` itself can no be generic, though, and this PEP introduces
+``TypeVar`` itself cannot be generic, though, and this PEP introduces
 parametrization of type variables - that is, a generic ``TypeVar``, enabling *Higher-Kinded Types*
 (*HKTs*). This enables a variety of use cases, in particular, it allows to write code generic
 over *type constructors*, instead of being generic over *types* only.
